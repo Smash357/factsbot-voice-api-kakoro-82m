@@ -1,6 +1,6 @@
-fastapi==0.110.0
-uvicorn==0.28.0
-kokoro-onnx==0.3.4
-onnxruntime==1.17.1
-numpy==1.26.4
-soundfile==0.12.1
+fastapi
+uvicorn
+kokoro-onnx
+onnxruntime
+numpy
+soundfile
