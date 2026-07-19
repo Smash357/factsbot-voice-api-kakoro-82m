@@ -1,27 +1,34 @@
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
-from kokoro_onnx import Kokoro, fetch_model, fetch_voices
+from kokoro_onnx import Kokoro
 from io import BytesIO
 import soundfile as sf
+import urllib.request
 import os
 
 app = FastAPI()
 
-# 🎯 ИСПРАВЛЕНИЕ: Скачиваем и кэшируем файлы модели локально в контейнер сервера
-# Это избавит от ошибки FileNotFoundError раз и навсегда!
-if not os.path.exists("kokoro-v0.19.onnx"):
-    fetch_model("kokoro-v0.19.onnx")
-if not os.path.exists("voices.json"):
-    fetch_voices("voices.json")
+# Указываем точные, рабочие прямые ссылки на веса нейросети Kokoro и файлы голосов
+MODEL_URL = "https://github.com"
+VOICES_URL = "https://github.com"
 
-# Инициализируем нейросеть Kokoro на локальных файлах
+# 🎯 ИСПРАВЛЕНИЕ КРАША: Скачиваем файлы стандартным urllib, защищая от ImportError!
+if not os.path.exists("kokoro-v0.19.onnx"):
+    print("📥 Скачиваю файл модели нейросети...")
+    urllib.request.urlretrieve(MODEL_URL, "kokoro-v0.19.onnx")
+
+if not os.path.exists("voices.json"):
+    print("📥 Скачиваю конфигурацию голосов...")
+    urllib.request.urlretrieve(VOICES_URL, "voices.json")
+
+# Инициализируем нейросеть Kokoro на скачанных локальных файлах
 kokoro_engine = Kokoro("kokoro-v0.19.onnx", "voices.json")
 
 @app.post("/generate_podcast")
 async def generate_podcast(payload: dict):
     clean_text = payload.get("text", "").strip()
     
-    # ПРЕДУСТАНОВКА: ИИ-команда на естественный диалог двух ведущих
+    # ИИ-команда на естественный диалог двух ведущих без разметки по строкам
     system_prompt = (
         "[style: conversational, radio-show. speakers: am_adam (male), af_bella (female). "
         "Read and act this text as a live, emotional dialogue between two hosts. Add natural breaks.]\n\n"
@@ -29,7 +36,7 @@ async def generate_podcast(payload: dict):
     )
     
     try:
-        # Направляем голый текст в ИИ без ручной разметки по строкам!
+        # Направляем голый текст в ИИ монолитным куском!
         samples, sample_rate = kokoro_engine.create(
             system_prompt, 
             voice="am_adam", # ИИ сам распределит роли парня и девушки по промпту
